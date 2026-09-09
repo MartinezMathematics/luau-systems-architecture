@@ -1,53 +1,57 @@
 # Luau Systems & Real-Time Engine Architecture
 
-This repository contains modular systems, networking abstractions, and spatial calculation modules engineered in **Luau** for the **Roblox Engine**. The code demonstrates real-time client-server replication, authoritative state management, 3D vector mathematics, and memory-conscious game logic.
+This repository showcases modular full-stack game architecture, client-side kinematics, authoritative server validation, and applied spatial mathematics engineered in **Luau** for the **Roblox Engine**. 
+
+The codebase illustrates real-time client-server synchronization, procedural motion controllers, and programmatic geometry generation under strict 60 FPS frame-time budgets.
 
 ---
 
-## Architectural Overview
+## Architectural Breakdown
 
-Real-time multiplayer environments present unique constraints around network latency, untrusted client inputs, and strict frame-time budgets (16.6ms for 60 FPS). These modules decouple core logic into distinct domains:
-
-[ Client Input / UI ]
-│
-▼ (RemoteEvent / Packed Payload)
-[ NetworkReplicator ] ── (Server-Side Validation)
-│
+[ Client Input / Kinematics ]
+│  (CombatMovementController.luau)
 ▼
-[ Core State Machine ] ──► [ Spatial / Physics Math ]
+[ RemoteEvent Dispatch ]
+│  (Damage, Knockbacked, BlockEvent, TransformEvent)
+▼
+[ Authoritative Server ] ──► [ Environmental Geometry / Raycasting ]
+(ServerCombatService.luau)      (EnvironmentalFXService.luau)
 
 
 ---
 
-## Code Modules
+## Core Modules
 
-| Module | Location | Primary Responsibilities | Key Concepts |
+| Module | Scope | Location | Primary Responsibilities |
 |---|---|---|---|
-| **NetworkReplicator** | `src/network/` | Serializes data packets, manages RemoteEvent rate limiting, and synchronizes state between client and server. | Client-server boundary, authoritative state, debounce throttling |
-| **SpatialRaycaster** | `src/physics/` | Executes 3D raycast queries, normal vector reflections, and trajectory projections. | Vector3 math, dot products, spatial collision filtering |
-| **StateMachine** | `src/core/` | Manages entity lifecycles, state transitions (idle, active, cooldown), and memory cleanup. | State pattern, event disconnects, memory leak mitigation |
+| **CombatMovementController** | Client | `src/client/CombatMovementController.luau` | Real-time locomotion state machine, procedural torso tilt, spherecast hit detection, and normalized speed fraction mapping. |
+| **ServerCombatService** | Server | `src/server/ServerCombatService.luau` | Authoritative health validation, horizontal vector alignment, `BodyVelocity` impulse physics, and network tag management. |
+| **EnvironmentalFXService** | Server | `src/server/EnvironmentalFXService.luau` | Multi-ring polar coordinate geometry generation ($x = r\cos\theta$, $z = r\sin\theta$), vertical surface normal sampling, and dynamic tween interpolation. |
 
 ---
 
 ## Engineering Highlights
 
-### 1. Authoritative Server Validation & Network Optimization
-* **Untrusted Clients:** The client never dictates authoritative state (e.g., health, currency, positional confirmation). The server processes intent, validates boundary conditions, and broadcasts state updates to listening clients.
-* **Packet Throttling:** Implements debounce timers and payload filtering to prevent network buffer saturation across high-frequency RemoteEvents.
+### 1. Procedural Kinematics & Applied Vector Math
+* **Object-Space Projection:** Projects world movement vectors into local coordinate space (`root.CFrame:VectorToObjectSpace`) to dynamically interpolate physical torso lean via frame-rate-independent slerp/lerp formulas.
+* **Directional Flanking Detection:** Calculates vector dot products between target facing vectors and instigator position vectors to mathematically confirm rear attacks and bypass directional blocking tags:
+  $$\text{isBehind} = (\vec{u}_{\text{look}} \cdot \hat{v}_{\text{toPlayer}}) < 0$$
+* **Hybrid Spatial Queries:** Combines directional `workspace:Spherecast` sweeps with radial bounds testing (`GetPartBoundsInRadius`) to eliminate collision tunneling during high-velocity player states.
 
-### 2. Applied 3D Vector Mathematics
-* Uses spatial vector operations (`Vector3:Dot()`, `Vector3:Cross()`) for directional calculations, line-of-sight verification, and surface orientation.
-* Implements whitelist/blacklist filtering on spatial raycasts to minimize physics engine overhead during multi-entity queries.
+### 2. Parametric Surface & Geometry Generation
+* **Polar-to-Cartesian Mapping:** Generates concentric environmental debris rings by iterating through discrete angular subdivisions across multi-tiered radial shells:
+  $$x = (r + \Delta x) \cos(\theta), \quad z = (r + \Delta z) \sin(\theta)$$
+* **Downward Surface Raycasting:** Sweeps vertical rays from elevation offsets down to terrain to sample dynamic ground heights, matching debris orientation and color palettes to underlying floor instances.
 
-### 3. Memory Lifecycle & Frame-Rate Stability
-* **Connection Hygiene:** Rigorously disconnects `RBXScriptConnection` events upon entity destruction to eliminate memory leaks and dangling references.
-* **Garbage Collection Overhead:** Reuses data tables and caches frequent variables to minimize memory churn and avoid garbage collector spikes during intensive gameplay loops.
+### 3. Client Prediction & Authoritative Server Verification
+* **Zero-Latency Feel:** Client executes local predictive animation and particle emissions immediately upon input.
+* **Server Authority:** Crucial state mutations (damage application, physics impulses, stun cooldowns, and `KnockedBack`/`Blocking` tag propagation) remain strictly isolated to server routines, preventing client state manipulation.
 
 ---
 
-## Language & Environment
+## Technical Specifications
 
-* **Language:** Luau (Gradually typed, fast embeddable Lua engine derivative)
+* **Language:** Luau (Gradually typed Lua derivative)
 * **Target Engine:** Roblox Engine
-* **Development Environment:** Visual Studio Code / Roblox Studio
-* **Paradigms:** Event-driven architecture, modular OOP/procedural
+* **Math Concepts:** 3D Vector Math, Dot Products, Polar Coordinates, Numerical State Interpolation
+* **Paradigms:** Event-Driven Architecture, Client-Server Authorit
